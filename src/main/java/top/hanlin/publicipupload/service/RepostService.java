@@ -19,4 +19,9 @@ public interface RepostService {
     List<UserInfo> getAllUser();
 
     void modifyPassword(String modify);
+    
+    /**
+     * 判断是否是初始密码
+     */
+    boolean isInitialPassword();
 }

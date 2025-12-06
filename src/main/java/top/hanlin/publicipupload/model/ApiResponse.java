@@ -5,12 +5,12 @@ import java.util.List;
 public class ApiResponse<T> {
     private int code;
     private String message;
-    private List<T> data;
+    private Object data;
 
     public ApiResponse() {
     }
 
-    public ApiResponse(int code, String message, List<T> data) {
+    public ApiResponse(int code, String message, Object data) {
         this.code = code;
         this.message = message;
         this.data = data;
@@ -19,8 +19,13 @@ public class ApiResponse<T> {
     public static <T> ApiResponse<T> success(List<T> data) {
         return new ApiResponse<>(200, "成功", data);
     }
+
     public static <T> ApiResponse<T> success(String message) {
         return new ApiResponse<>(200, message, null);
+    }
+
+    public static <T> ApiResponse<T> successData(T data) {
+        return new ApiResponse<>(200, "成功", data);
     }
 
     public static <T> ApiResponse<T> error(String message) {
@@ -43,11 +48,11 @@ public class ApiResponse<T> {
         this.message = message;
     }
 
-    public List<T> getData() {
+    public Object getData() {
         return data;
     }
 
-    public void setData(List<T> data) {
+    public void setData(Object data) {
         this.data = data;
     }
-} 
+}

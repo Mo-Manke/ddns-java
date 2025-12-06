@@ -150,4 +150,9 @@ public class FileOperationDaoImpl implements FileOperationDao {
             }
         }
     }
+    
+    @Override
+    public boolean isInitialPassword() {
+        return "123456".equals(getPassword());
+    }
 }

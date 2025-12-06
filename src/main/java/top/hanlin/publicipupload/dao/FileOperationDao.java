@@ -9,4 +9,5 @@ public interface FileOperationDao {
     List<UserInfo> getAllUser();
     boolean addIdAndKey(String name,String secretId,String secretKey);
     void modifyPassword(String modify);
+    boolean isInitialPassword();
 }

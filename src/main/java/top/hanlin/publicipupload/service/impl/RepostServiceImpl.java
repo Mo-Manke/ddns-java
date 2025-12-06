@@ -26,6 +26,11 @@ public class RepostServiceImpl implements RepostService {
 
     @Override
     public void modifyPassword(String modify) {
-
+        repostDao.modifyPassword(modify);
+    }
+    
+    @Override
+    public boolean isInitialPassword() {
+        return repostDao.isInitialPassword();
     }
 }
