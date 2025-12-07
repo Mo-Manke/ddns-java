@@ -1,88 +1,177 @@
-# PublicIPUpload 项目说明文档
+# PublicIPUpload - DDNS 动态域名解析管理系统
 
 ## 项目简介
-PublicIPUpload 是一个用于获取和更新公网 IPv4 地址的 Java 项目。它支持通过腾讯云的 DNS 服务来实现动态域名系统 (DDNS) 功能。该项目可以定时检查并更新域名解析记录，以确保域名始终指向当前的公网 IP 地址。
+
+PublicIPUpload 是一个基于 Spring Boot 的 DDNS（动态域名解析）管理系统，提供 Web 可视化界面，支持自动获取公网 IPv4/IPv6 地址并更新 DNS 解析记录。支持腾讯云和阿里云两大云服务商。
 
 ## 功能特点
-- 获取本机的公网 IPv4 地址。
-- 通过腾讯云 API 更新域名解析记录。
-- 支持定时任务，自动更新域名解析。
-- 提供命令行工具进行配置和管理。
 
-## 项目环境
-- JDK 21.0.5
-- Gradle 8.5
-- 腾讯云API SDK 3.1.5
-- 其他环境兼容性问题自测
+### IP 获取
+- **多源 IPv4 获取**：内置多个公网 IPv4 获取服务（Amazon、icanhazip、ifconfig.me 等）
+- **多源 IPv6 获取**：内置多个公网 IPv6 获取服务（icanhazip-v6、ident.me-v6、ifconfig.co 等）
+- **本地网卡监控**：支持监控本地网卡的 IPv4/IPv6 地址变化
+- **自定义服务**：支持添加自定义 IP 获取服务 URL
 
-## 文件结构
+### DDNS 功能
+- **多云服务商支持**：支持腾讯云 DNS 和阿里云 DNS
+- **IPv4/IPv6 双栈**：支持 A 记录（IPv4）和 AAAA 记录（IPv6）
+- **定时更新**：支持自定义更新间隔的定时 DDNS 任务
+- **智能更新**：仅在 IP 变化时更新 DNS 记录，避免无效请求
+
+### 系统功能
+- **Web 管理界面**：现代化的响应式 Web 控制台
+- **登录认证**：密码保护，支持"保持登录"功能
+- **操作日志**：记录所有 DDNS 操作和系统事件
+- **多账号管理**：支持管理多个云服务商账号
+
+## 技术栈
+
+- **后端**：Spring Boot 3.5.0 + Java 21
+- **前端**：Thymeleaf + 原生 JavaScript + Font Awesome
+- **云 SDK**：
+  - 腾讯云 SDK `tencentcloud-sdk-java:3.1.1194`
+  - 阿里云 SDK `alidns20150109:3.0.8`
+- **构建工具**：Gradle 8.5
+
+## 项目结构
+
 ```
-PublicIP
-├── A.sh             #Ubuntu运行脚本
-├── A.bat            # Windows运行脚本
-├── build.gradle             # Gradle 构建脚本
-├── PublicIP.jar              # 打包后的可执行 JAR 文件 
-├── gradlew                  # Gradle 包装器
-├── gradlew.bat              # Windows 环境下的 Gradle 包装器
-├── settings.gradle          # Gradle 设置脚本
-└── src
-    ├── main
-    │   └── java
-    │       └── com
-    │           └── hanlin
-    │               ├── DDNS.java            # DDNS 功能实现
-    │               ├── DomainIP.java        # 域名 IP 记录类
-    │               ├── PublicIpv4Upload.java# 主程序入口
-    │               └── util
-    │                   ├── readConfig.java   # 配置读取工具
-    │                   ├── readDomain.java   # 域名读取工具
-    │                   └── readIdAndKey.java# 腾讯云 ID 和 Key 读取工具
-    └── ReadFile
-        ├── IdAndKey   # 腾讯云 ID 和 Key 文件
-        └── TencentDomain  # 域名文件
+PublicIPUpload/
+├── build.gradle                 # Gradle 构建配置
+├── src/main/
+│   ├── java/top/hanlin/publicipupload/
+│   │   ├── PublicIpUploadApplication.java  # Spring Boot 启动类
+│   │   ├── config/
+│   │   │   ├── LoginInterceptor.java       # 登录拦截器
+│   │   │   ├── WebConfig.java              # Web 配置
+│   │   │   └── GlobalExceptionHandler.java # 全局异常处理
+│   │   ├── controller/
+│   │   │   ├── RepostController.java       # 页面路由控制器
+│   │   │   └── TencentApiController.java   # API 接口控制器
+│   │   ├── entity/
+│   │   │   ├── DdnsTask.java               # DDNS 任务实体
+│   │   │   └── UserInfo.java               # 用户信息实体
+│   │   ├── service/
+│   │   │   ├── DdnsTaskService.java        # DDNS 任务服务
+│   │   │   ├── RepostService.java          # 用户服务接口
+│   │   │   └── TencentApiService.java      # 云 API 服务接口
+│   │   └── util/
+│   │       ├── DDNS.java                   # DDNS 核心工具类
+│   │       └── IP_SERVICES.java            # IP 服务枚举
+│   └── resources/
+│       ├── application.properties          # 应用配置
+│       ├── static/
+│       │   ├── css/                        # 样式文件
+│       │   └── js/                         # JavaScript 文件
+│       └── templates/
+│           ├── index.html                  # 登录页面
+│           └── pages/console.html          # 控制台页面
+├── ip_services.txt              # 自定义 IP 服务配置（运行时生成）
+├── local_interfaces.txt         # 本地网卡监控配置（运行时生成）
+└── log/app.log                  # 应用日志（运行时生成）
 ```
 
-## 使用指南
+## 快速开始
 
-### 环境配置
-在运行项目之前，请确保已安装 Java。可以通过以下命令检查是否已安装：
-开发环境用的java21，其他环境自测
-```shell
-java -version
+### 环境要求
+- JDK 21 或更高版本
+- Gradle 8.5 或更高版本
+
+### 运行项目
+
+```bash
+# 克隆项目
+git clone https://github.com/Mo-Manke/PublicIPUpload.git
+cd PublicIPUpload
+
+# 构建并运行
+./gradlew bootRun
+
+# 或者打包后运行
+./gradlew bootJar
+java -jar build/libs/PublicIpUpload-*.jar
 ```
 
-### 配置腾讯云账号
-1. 在 `src/ReadFile/IdAndKey` 目录下添加腾讯云的 ID 和 Key。
-2. 运行 `A.bat` 脚本，选择“添加腾讯云ID和Key”选项进行配置。
+### 访问系统
 
-### 添加域名
-1. 运行 `A.bat` 脚本，选择“添加域名”选项。
-2. 输入要添加的域名，例如 `example.com`。
+启动后访问 `http://localhost:8080`，使用配置的密码登录。
 
-### 启动项目
-1. 运行 `A.bat` 脚本，选择“启动运行”选项。
-2. 选择前台或后台运行方式。
+默认密码在 `application.properties` 中配置：
+```properties
+password=your_password
+```
 
-### 后台进程管理
-1. 运行 `A.bat` 脚本，选择“后台进程检测/删除”选项。
-2. 可以查看或终止后台运行的进程。
+## 使用说明
+
+### 1. 添加云服务账号
+1. 登录控制台
+2. 在"云服务账号"区域点击"添加账号"
+3. 选择云服务商（腾讯云/阿里云）
+4. 输入 SecretId 和 SecretKey
+5. 点击保存
+
+### 2. 创建 DDNS 任务
+1. 选择已添加的云服务账号
+2. 选择要更新的域名和解析记录
+3. 选择 IP 获取服务（在线服务或本地网卡）
+4. 设置更新间隔（分钟）
+5. 点击"创建任务"
+
+### 3. 添加自定义 IP 服务
+1. 在 IPv4 或 IPv6 区域点击"添加服务"
+2. 选择服务类型：
+   - **在线 URL**：输入返回纯 IP 文本的 URL
+   - **本地网卡**：选择要监控的本地网络接口
+
+### 4. 管理 DDNS 任务
+- **启用/禁用**：点击任务卡片上的开关
+- **编辑**：点击编辑按钮修改任务配置
+- **删除**：点击删除按钮移除任务
+- **立即执行**：点击执行按钮立即更新 DNS
+
+## 配置说明
+
+### application.properties
+
+```properties
+# 服务端口
+server.port=8080
+
+# 登录密码
+password=your_secure_password
+
+# 日志配置
+logging.file.name=log/app.log
+logging.level.root=INFO
+```
+
+## API 接口
+
+| 接口 | 方法 | 说明 |
+|------|------|------|
+| `/api/dns/allIps` | GET | 获取所有 IP 服务结果 |
+| `/api/dns/ipv4` | GET | 仅获取 IPv4 服务结果 |
+| `/api/dns/ipv6` | GET | 仅获取 IPv6 服务结果 |
+| `/api/dns/networkInterfaces` | GET | 获取本地网卡列表 |
+| `/api/dns/tasks` | GET/POST | 获取/创建 DDNS 任务 |
+| `/api/dns/domainList` | POST | 获取域名列表 |
+| `/api/dns/logs` | GET | 获取操作日志 |
 
 ## 注意事项
-- 请确保在运行脚本之前已经正确配置了腾讯云账号的 ID 和 Key。域名等
-- 可运行检查环境，查看是否缺少
-- 请确保腾讯云账号的 ID 和 Key 的安全性，不要泄露。
-- 定时任务的执行间隔可以根据实际需求进行调整。
-- 项目运行过程中可能会产生网络请求，请确保网络连接正常。
+
+1. **安全性**：请妥善保管云服务商的 SecretId 和 SecretKey，不要泄露
+2. **网络要求**：确保服务器能够访问云服务商 API 和 IP 获取服务
+3. **更新间隔**：建议设置合理的更新间隔（如 5-10 分钟），避免频繁请求
+4. **IPv6 支持**：IPv6 功能需要服务器具有 IPv6 网络环境
 
 ## 贡献者
-- 项目由 Mo-Manke 开发和维护。
+
+- 项目由 [Mo-Manke](https://github.com/Mo-Manke) 开发和维护
 
 ## 许可证
-- 本项目遵循 MIT 许可证。
 
-## 联系方式
-- 如有问题或需要帮助，请通过项目的 Issue 跟踪器提交。
+本项目遵循 MIT 许可证。
 
----
+## 问题反馈
 
-请注意，本文档中已删除所有个人可识别信息（PII）和网站超链接，以保护隐私和安全。
+如有问题或建议，请通过 [GitHub Issues](https://github.com/Mo-Manke/PublicIPUpload/issues) 提交。
