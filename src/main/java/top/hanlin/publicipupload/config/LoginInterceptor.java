@@ -41,17 +41,17 @@ public class LoginInterceptor implements HandlerInterceptor {
     }
 
     private boolean isLoggedIn(HttpServletRequest request) {
-        // 检查Session
+        // 检查Session（优先，适用于不保持登录的情况）
         HttpSession session = request.getSession(false);
         if (session != null && Boolean.TRUE.equals(session.getAttribute(SESSION_USER))) {
             return true;
         }
         
-        // 检查Cookie
+        // 检查Cookie（适用于保持登录的情况）
         Cookie[] cookies = request.getCookies();
         if (cookies != null) {
             for (Cookie cookie : cookies) {
-                if (COOKIE_SESSION.equals(cookie.getName()) && "true".equals(cookie.getValue())) {
+                if (COOKIE_SESSION.equals(cookie.getName()) && "valid".equals(cookie.getValue())) {
                     // Cookie有效，恢复Session
                     request.getSession().setAttribute(SESSION_USER, true);
                     return true;

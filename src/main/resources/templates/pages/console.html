@@ -97,10 +97,10 @@
                 <h2><i class="fas fa-globe"></i> 域名解析管理</h2>
             </div>
 
-            <!-- IP选择区域 -->
+            <!-- IPv4选择区域 -->
             <div class="ip-section">
                 <div class="ip-header">
-                    <h3><i class="fas fa-network-wired"></i> 公网IP获取</h3>
+                    <h3><i class="fas fa-network-wired"></i> 公网IPv4获取</h3>
                     <div class="ip-actions">
                         <button id="refreshIp" class="btn btn-sm">
                             <i class="fas fa-sync-alt"></i> 刷新
@@ -110,12 +110,34 @@
                         </button>
                     </div>
                 </div>
-                <div id="ipList" class="ip-list">
-                    <div class="loading"><i class="fas fa-spinner fa-spin"></i> 正在获取IP...</div>
+                <div id="ipv4List" class="ip-list">
+                    <div class="loading"><i class="fas fa-spinner fa-spin"></i> 正在获取IPv4...</div>
                 </div>
                 <div class="selected-ip">
-                    <span>已选择IP: </span>
-                    <strong id="selectedIp">未选择</strong>
+                    <span>已选择IPv4: </span>
+                    <strong id="selectedIpv4">未选择</strong>
+                </div>
+            </div>
+            
+            <!-- IPv6选择区域 -->
+            <div class="ip-section ipv6-section">
+                <div class="ip-header">
+                    <h3><i class="fas fa-globe"></i> 公网IPv6获取</h3>
+                    <div class="ip-actions">
+                        <button id="refreshIpv6" class="btn btn-sm">
+                            <i class="fas fa-sync-alt"></i> 刷新
+                        </button>
+                        <button id="addServiceBtnV6" class="btn btn-sm btn-secondary">
+                            <i class="fas fa-plus"></i> 添加服务
+                        </button>
+                    </div>
+                </div>
+                <div id="ipv6List" class="ip-list">
+                    <div class="loading"><i class="fas fa-spinner fa-spin"></i> 正在获取IPv6...</div>
+                </div>
+                <div class="selected-ip">
+                    <span>已选择IPv6: </span>
+                    <strong id="selectedIpv6">未选择</strong>
                 </div>
             </div>
 
@@ -245,10 +267,31 @@
             <button class="close-btn"><i class="fas fa-times"></i></button>
         </div>
         <div class="modal-body">
+            <input type="hidden" id="addServiceIpType" value="ipv4">
             <div class="form-group">
+                <label>服务类型</label>
+                <div class="radio-group">
+                    <label class="radio-item">
+                        <input type="radio" name="serviceType" value="url" checked>
+                        <span class="radio-label">在线URL</span>
+                    </label>
+                    <label class="radio-item">
+                        <input type="radio" name="serviceType" value="local">
+                        <span class="radio-label">本地网卡</span>
+                    </label>
+                </div>
+            </div>
+            <div class="form-group" id="urlInputGroup">
                 <label>服务URL</label>
-                <input type="text" id="newServiceUrl" placeholder="如: http://ip.sb" required>
+                <input type="text" id="newServiceUrl" placeholder="如: http://ip.sb">
                 <small class="form-hint">输入一个返回纯IP文本的URL地址</small>
+            </div>
+            <div class="form-group" id="interfaceSelectGroup" style="display: none;">
+                <label>选择网卡</label>
+                <select id="networkInterfaceSelect">
+                    <option value="">加载中...</option>
+                </select>
+                <small class="form-hint">选择要监控IP变化的本地网卡</small>
             </div>
         </div>
         <div class="modal-footer">

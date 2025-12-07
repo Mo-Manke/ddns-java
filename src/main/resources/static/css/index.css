@@ -107,5 +107,31 @@ body {
     color: var(--error-color);
     font-size: 14px;
     margin-top: -10px;
-    margin-top: -10px;
+}
+
+.remember-me {
+    display: flex;
+    align-items: center;
+    margin-top: -5px;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-size: 14px;
+    color: #666;
+    user-select: none;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    margin-right: 8px;
+    cursor: pointer;
+    accent-color: var(--primary-color);
+}
+
+.checkbox-label span:last-child {
+    margin-left: 4px;
 }

@@ -104,6 +104,26 @@ public class TencentApiController {
         List<Map<String, String>> results = DDNS.getAllPublicIPs();
         return ApiResponse.success(results);
     }
+    
+    /**
+     * 只获取IPv4服务结果
+     */
+    @GetMapping("/ipv4")
+    public Object getIpv4() {
+        log.info("获取IPv4服务结果");
+        List<Map<String, String>> results = DDNS.getIPv4Only();
+        return ApiResponse.success(results);
+    }
+    
+    /**
+     * 只获取IPv6服务结果
+     */
+    @GetMapping("/ipv6")
+    public Object getIpv6() {
+        log.info("获取IPv6服务结果");
+        List<Map<String, String>> results = DDNS.getIPv6Only();
+        return ApiResponse.success(results);
+    }
 
     /**
      * 添加自定义IP服务
@@ -112,9 +132,35 @@ public class TencentApiController {
     public Object addIpService(@RequestParam String url) {
         log.info("添加自定义IP服务: {}", url);
         if (DDNS.addCustomService(url)) {
+            ddnsTaskService.addOperationLog("info", "[系统] 添加自定义IP服务: " + url);
             return ApiResponse.success("添加成功");
         }
+        ddnsTaskService.addOperationLog("warn", "[系统] 添加自定义IP服务失败: " + url);
         return ApiResponse.error("添加失败，可能已存在或URL无效");
+    }
+    
+    /**
+     * 获取本地网卡列表
+     */
+    @GetMapping("/networkInterfaces")
+    public Object getNetworkInterfaces() {
+        log.info("获取本地网卡列表");
+        List<Map<String, Object>> interfaces = DDNS.getNetworkInterfaces();
+        return ApiResponse.success(interfaces);
+    }
+    
+    /**
+     * 添加本地网卡监控
+     */
+    @PostMapping("/addLocalInterface")
+    public Object addLocalInterface(@RequestParam String interfaceName, @RequestParam String ipType) {
+        log.info("添加本地网卡监控: {} ({})", interfaceName, ipType);
+        if (DDNS.addLocalInterfaceMonitor(interfaceName, ipType)) {
+            ddnsTaskService.addOperationLog("info", "[系统] 添加本地网卡监控: " + interfaceName + " (" + ipType + ")");
+            return ApiResponse.success("添加成功");
+        }
+        ddnsTaskService.addOperationLog("warn", "[系统] 添加本地网卡监控失败: " + interfaceName);
+        return ApiResponse.error("添加失败，可能已存在或网卡无效");
     }
 
     /**
@@ -249,7 +295,8 @@ public class TencentApiController {
             @RequestParam String subdomain,
             @RequestParam String ipServiceUrl,
             @RequestParam String ipServiceName,
-            @RequestParam(defaultValue = "300") int interval) {
+            @RequestParam(defaultValue = "300") int interval,
+            @RequestParam(defaultValue = "A") String recordType) {
         
         DdnsTask task = new DdnsTask();
         task.setProvider(provider);
@@ -260,6 +307,7 @@ public class TencentApiController {
         task.setIpServiceUrl(ipServiceUrl);
         task.setIpServiceName(ipServiceName);
         task.setInterval(interval);
+        task.setRecordType(recordType);
         
         DdnsTask created = ddnsTaskService.addTask(task);
         return ApiResponse.successData(created);

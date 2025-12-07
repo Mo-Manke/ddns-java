@@ -127,22 +127,33 @@ public class RepostController {
     }
 
     @PostMapping("/login")
-    public String login(@RequestParam String password, Model model,
+    public String login(@RequestParam String password, 
+                        @RequestParam(required = false) String rememberMe,
+                        Model model,
                         HttpServletRequest request, HttpServletResponse response) {
-        log.info("用户登录");
+        log.info("用户登录, 保持登录: {}", rememberMe != null);
         boolean results = repostService.login(password);
         if (results) {
             // 创建Session
             HttpSession session = request.getSession(true);
             session.setAttribute(SESSION_USER, true);
-            session.setMaxInactiveInterval(SESSION_TIMEOUT);
             
-            // 设置Cookie，1天过期
-            Cookie cookie = new Cookie(COOKIE_SESSION, "valid");
-            cookie.setMaxAge(SESSION_TIMEOUT);
-            cookie.setPath("/");
-            cookie.setHttpOnly(true);
-            response.addCookie(cookie);
+            boolean keepLogin = "on".equals(rememberMe);
+            
+            if (keepLogin) {
+                // 保持登录：Session和Cookie都设置较长过期时间
+                session.setMaxInactiveInterval(SESSION_TIMEOUT);
+                
+                Cookie cookie = new Cookie(COOKIE_SESSION, "valid");
+                cookie.setMaxAge(SESSION_TIMEOUT);
+                cookie.setPath("/");
+                cookie.setHttpOnly(true);
+                response.addCookie(cookie);
+            } else {
+                // 不保持登录：Session仅在浏览器关闭前有效，不设置持久Cookie
+                session.setMaxInactiveInterval(-1); // 浏览器关闭时过期
+                // 不设置Cookie，或设置会话Cookie（浏览器关闭时删除）
+            }
             
             status = "登录成功";
             return "redirect:/pages/console";

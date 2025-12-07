@@ -237,6 +237,8 @@ public class DdnsTaskService {
         clientProfile.setHttpProfile(httpProfile);
         DnspodClient client = new DnspodClient(cred, "", clientProfile);
         
+        String recordType = task.getRecordType(); // A 或 AAAA
+        
         // 查找记录ID
         DescribeRecordListRequest listReq = new DescribeRecordListRequest();
         listReq.setDomain(task.getDomain());
@@ -245,12 +247,12 @@ public class DdnsTaskService {
         
         if (listResp.getRecordList() != null && listResp.getRecordList().length > 0) {
             for (RecordListItem record : listResp.getRecordList()) {
-                if ("A".equals(record.getType())) {
+                if (recordType.equals(record.getType())) {
                     DeleteRecordRequest deleteReq = new DeleteRecordRequest();
                     deleteReq.setDomain(task.getDomain());
                     deleteReq.setRecordId(record.getRecordId());
                     client.DeleteRecord(deleteReq);
-                    log.info("删除DNS记录: {} (ID: {})", task.getFullDomain(), record.getRecordId());
+                    log.info("删除DNS记录: {} (ID: {}) 类型: {}", task.getFullDomain(), record.getRecordId(), recordType);
                 }
             }
         }
@@ -262,23 +264,25 @@ public class DdnsTaskService {
     private void deleteAliyunDnsRecord(DdnsTask task) throws Exception {
         com.aliyun.alidns20150109.Client client = createAliyunClient(task.getSecretId(), task.getSecretKey());
         
+        String recordType = task.getRecordType(); // A 或 AAAA
+        
         // 查找记录ID
         com.aliyun.alidns20150109.models.DescribeDomainRecordsRequest listReq = 
             new com.aliyun.alidns20150109.models.DescribeDomainRecordsRequest()
                 .setDomainName(task.getDomain())
                 .setRRKeyWord(task.getSubdomain())
-                .setType("A");
+                .setType(recordType);
         com.aliyun.alidns20150109.models.DescribeDomainRecordsResponse listResp = client.describeDomainRecords(listReq);
         
         if (listResp.getBody().getDomainRecords() != null && 
             listResp.getBody().getDomainRecords().getRecord() != null) {
             for (var record : listResp.getBody().getDomainRecords().getRecord()) {
-                if (task.getSubdomain().equals(record.getRR()) && "A".equals(record.getType())) {
+                if (task.getSubdomain().equals(record.getRR()) && recordType.equals(record.getType())) {
                     com.aliyun.alidns20150109.models.DeleteDomainRecordRequest deleteReq = 
                         new com.aliyun.alidns20150109.models.DeleteDomainRecordRequest()
                             .setRecordId(record.getRecordId());
                     client.deleteDomainRecord(deleteReq);
-                    log.info("删除阿里云DNS记录: {} (ID: {})", task.getFullDomain(), record.getRecordId());
+                    log.info("删除阿里云DNS记录: {} (ID: {}) 类型: {}", task.getFullDomain(), record.getRecordId(), recordType);
                 }
             }
         }
@@ -398,6 +402,8 @@ public class DdnsTaskService {
         clientProfile.setHttpProfile(httpProfile);
         DnspodClient client = new DnspodClient(cred, "", clientProfile);
         
+        String recordType = task.getRecordType(); // A 或 AAAA
+        
         DescribeRecordListRequest listReq = new DescribeRecordListRequest();
         listReq.setDomain(task.getDomain());
         listReq.setSubdomain(task.getSubdomain());
@@ -405,7 +411,7 @@ public class DdnsTaskService {
         
         if (listResp.getRecordList() != null && listResp.getRecordList().length > 0) {
             for (RecordListItem record : listResp.getRecordList()) {
-                if ("A".equals(record.getType())) {
+                if (recordType.equals(record.getType())) {
                     return record.getValue();
                 }
             }
@@ -419,17 +425,19 @@ public class DdnsTaskService {
     private String getAliyunDnsRecordIp(DdnsTask task) throws Exception {
         com.aliyun.alidns20150109.Client client = createAliyunClient(task.getSecretId(), task.getSecretKey());
         
+        String recordType = task.getRecordType(); // A 或 AAAA
+        
         com.aliyun.alidns20150109.models.DescribeDomainRecordsRequest listReq = 
             new com.aliyun.alidns20150109.models.DescribeDomainRecordsRequest()
                 .setDomainName(task.getDomain())
                 .setRRKeyWord(task.getSubdomain())
-                .setType("A");
+                .setType(recordType);
         com.aliyun.alidns20150109.models.DescribeDomainRecordsResponse listResp = client.describeDomainRecords(listReq);
         
         if (listResp.getBody().getDomainRecords() != null && 
             listResp.getBody().getDomainRecords().getRecord() != null) {
             for (var record : listResp.getBody().getDomainRecords().getRecord()) {
-                if (task.getSubdomain().equals(record.getRR()) && "A".equals(record.getType())) {
+                if (task.getSubdomain().equals(record.getRR()) && recordType.equals(record.getType())) {
                     return record.getValue();
                 }
             }
@@ -442,8 +450,10 @@ public class DdnsTaskService {
      * 优先使用用户选择的服务，失败则依次尝试内置服务
      */
     private String fetchIPWithFallback(DdnsTask task) {
+        boolean isIPv6 = "AAAA".equals(task.getRecordType());
+        
         // 1. 优先尝试用户选择的服务
-        String ip = fetchIP(task.getIpServiceUrl());
+        String ip = fetchIP(task.getIpServiceUrl(), isIPv6);
         if (ip != null) {
             return ip;
         }
@@ -451,17 +461,21 @@ public class DdnsTaskService {
         log.warn("首选IP服务不可用: {}，尝试备用服务", task.getIpServiceName());
         addOperationLog("warn", "[DDNS] " + task.getFullDomain() + " 首选服务 " + task.getIpServiceName() + " 不可用，切换备用服务");
         
-        // 2. 依次尝试内置服务
+        // 2. 依次尝试内置服务（根据记录类型选择IPv4或IPv6服务）
         for (IP_SERVICES service : IP_SERVICES.values()) {
             // 跳过已尝试的服务
             if (service.getUrl().equals(task.getIpServiceUrl())) {
                 continue;
             }
+            // 只使用匹配类型的服务
+            if (isIPv6 != service.isIPv6()) {
+                continue;
+            }
             
-            ip = fetchIP(service.getUrl());
+            ip = fetchIP(service.getUrl(), isIPv6);
             if (ip != null) {
-                log.info("使用备用服务获取IP成功: {} -> {}", service.name(), ip);
-                addOperationLog("info", "[DDNS] " + task.getFullDomain() + " 使用备用服务 " + service.name() + " 获取IP: " + ip);
+                log.info("使用备用服务获取IP成功: {} -> {}", service.getName(), ip);
+                addOperationLog("info", "[DDNS] " + task.getFullDomain() + " 使用备用服务 " + service.getName() + " 获取IP: " + ip);
                 return ip;
             }
         }
@@ -472,7 +486,7 @@ public class DdnsTaskService {
     /**
      * 添加操作日志
      */
-    private void addOperationLog(String type, String message) {
+    public void addOperationLog(String type, String message) {
         Map<String, String> logEntry = new HashMap<>();
         logEntry.put("time", LocalDateTime.now().format(formatter));
         logEntry.put("type", type);
@@ -508,6 +522,8 @@ public class DdnsTaskService {
     private void updateAliyunDns(DdnsTask task, String ip) throws Exception {
         com.aliyun.alidns20150109.Client client = createAliyunClient(task.getSecretId(), task.getSecretKey());
         
+        String recordType = task.getRecordType(); // A 或 AAAA
+        
         // 查找已存在的记录
         String recordId = null;
         try {
@@ -515,13 +531,13 @@ public class DdnsTaskService {
                 new com.aliyun.alidns20150109.models.DescribeDomainRecordsRequest()
                     .setDomainName(task.getDomain())
                     .setRRKeyWord(task.getSubdomain())
-                    .setType("A");
+                    .setType(recordType);
             com.aliyun.alidns20150109.models.DescribeDomainRecordsResponse listResp = client.describeDomainRecords(listReq);
             
             if (listResp.getBody().getDomainRecords() != null && 
                 listResp.getBody().getDomainRecords().getRecord() != null) {
                 for (var record : listResp.getBody().getDomainRecords().getRecord()) {
-                    if (task.getSubdomain().equals(record.getRR()) && "A".equals(record.getType())) {
+                    if (task.getSubdomain().equals(record.getRR()) && recordType.equals(record.getType())) {
                         recordId = record.getRecordId();
                         break;
                     }
@@ -537,7 +553,7 @@ public class DdnsTaskService {
                 new com.aliyun.alidns20150109.models.UpdateDomainRecordRequest()
                     .setRecordId(recordId)
                     .setRR(task.getSubdomain())
-                    .setType("A")
+                    .setType(recordType)
                     .setValue(ip);
             client.updateDomainRecord(updateReq);
         } else {
@@ -546,7 +562,7 @@ public class DdnsTaskService {
                 new com.aliyun.alidns20150109.models.AddDomainRecordRequest()
                     .setDomainName(task.getDomain())
                     .setRR(task.getSubdomain())
-                    .setType("A")
+                    .setType(recordType)
                     .setValue(ip);
             client.addDomainRecord(addReq);
         }
@@ -574,6 +590,8 @@ public class DdnsTaskService {
         clientProfile.setHttpProfile(httpProfile);
         DnspodClient client = new DnspodClient(cred, "", clientProfile);
         
+        String recordType = task.getRecordType(); // A 或 AAAA
+        
         // 查找已存在的记录
         Long recordId = null;
         try {
@@ -584,7 +602,7 @@ public class DdnsTaskService {
             
             if (listResp.getRecordList() != null && listResp.getRecordList().length > 0) {
                 for (RecordListItem record : listResp.getRecordList()) {
-                    if ("A".equals(record.getType())) {
+                    if (recordType.equals(record.getType())) {
                         recordId = record.getRecordId();
                         break;
                     }
@@ -600,7 +618,7 @@ public class DdnsTaskService {
             modifyReq.setDomain(task.getDomain());
             modifyReq.setRecordId(recordId);
             modifyReq.setSubDomain(task.getSubdomain());
-            modifyReq.setRecordType("A");
+            modifyReq.setRecordType(recordType);
             modifyReq.setRecordLine("默认");
             modifyReq.setValue(ip);
             client.ModifyRecord(modifyReq);
@@ -609,7 +627,7 @@ public class DdnsTaskService {
             CreateRecordRequest createReq = new CreateRecordRequest();
             createReq.setDomain(task.getDomain());
             createReq.setSubDomain(task.getSubdomain());
-            createReq.setRecordType("A");
+            createReq.setRecordType(recordType);
             createReq.setRecordLine("默认");
             createReq.setValue(ip);
             client.CreateRecord(createReq);
@@ -619,7 +637,7 @@ public class DdnsTaskService {
     /**
      * 从URL获取IP
      */
-    private String fetchIP(String urlStr) {
+    private String fetchIP(String urlStr, boolean isIPv6) {
         try {
             URL url = new URL(urlStr);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -634,7 +652,7 @@ public class DdnsTaskService {
                 while ((line = in.readLine()) != null) {
                     response.append(line);
                 }
-                return extractIPv4(response.toString());
+                return isIPv6 ? extractIPv6(response.toString()) : extractIPv4(response.toString());
             }
         } catch (Exception e) {
             log.debug("获取IP失败: {} - {}", urlStr, e.getMessage());
@@ -663,6 +681,32 @@ public class DdnsTaskService {
                 }
             }
             return ip;
+        }
+        return null;
+    }
+    
+    /**
+     * 从响应内容中提取IPv6地址
+     */
+    private String extractIPv6(String content) {
+        if (content == null || content.isEmpty()) {
+            return null;
+        }
+        // IPv6地址正则
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(
+            "([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|" +
+            "([0-9a-fA-F]{1,4}:){1,7}:|" +
+            "([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|" +
+            "([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|" +
+            "([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|" +
+            "([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|" +
+            "([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|" +
+            "[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|" +
+            ":((:[0-9a-fA-F]{1,4}){1,7}|:)"
+        );
+        java.util.regex.Matcher matcher = pattern.matcher(content.trim());
+        if (matcher.find()) {
+            return matcher.group(0);
         }
         return null;
     }

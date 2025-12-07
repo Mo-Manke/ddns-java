@@ -27,7 +27,8 @@ public class WebConfig implements WebMvcConfigurer {
                         "/img/**",
                         "/favicon.ico",
                         "/error",
-                        "/webjars/**"
+                        "/webjars/**",
+                        "/api/dns/logs"   // 日志接口不需要登录验证
                 );
     }
 }

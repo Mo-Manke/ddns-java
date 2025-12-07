@@ -676,11 +676,17 @@ a {
     color: #fa8c16;
 }
 
+.ip-service-type.local {
+    background: #f6ffed;
+    color: #52c41a;
+}
+
 .ip-card-body {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 8px;
     margin-bottom: 10px;
+    overflow: hidden;
 }
 
 .ip-card-body i {
@@ -700,6 +706,9 @@ a {
     font-weight: 600;
     font-family: 'Consolas', monospace;
     color: #333;
+    word-break: break-all;
+    overflow-wrap: break-word;
+    max-width: 100%;
 }
 
 .ip-failed .ip-value {

@@ -72,27 +72,61 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // ==================== 获取所有IP服务结果 ====================
     function loadAllIps() {
-        const ipListDiv = document.getElementById('ipList');
-        ipListDiv.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> 正在获取IP...</div>';
+        loadIpv4();
+        loadIpv6();
+    }
+    
+    // 只刷新IPv4
+    function loadIpv4() {
+        const ipv4ListDiv = document.getElementById('ipv4List');
+        if (ipv4ListDiv) ipv4ListDiv.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> 正在获取IPv4...</div>';
         
-        fetch('/api/dns/allIps')
+        fetch('/api/dns/ipv4')
             .then(response => response.json())
             .then(data => {
                 if (data.code === 200 && Array.isArray(data.data)) {
-                    ipServicesList = data.data;
-                    renderIpList(data.data);
+                    // 更新全局列表中的IPv4部分
+                    ipServicesList = ipServicesList.filter(i => i.ipType !== 'ipv4').concat(data.data);
+                    renderIpList(data.data, 'ipv4List', 'selectedIpv4', 'ipv4');
                     updateIpServiceSelects();
-                    const successCount = data.data.filter(i => i.status === 'success').length;
-                    addLog(`获取公网IP完成，${successCount}/${data.data.length} 个服务可用`, 'success');
+                    const success = data.data.filter(i => i.status === 'success').length;
+                    addLog(`获取IPv4完成: ${success}/${data.data.length}`, 'success');
                 } else {
-                    ipListDiv.innerHTML = '<div class="error"><i class="fas fa-exclamation-circle"></i> 获取失败</div>';
-                    addLog('获取公网IP失败', 'error');
+                    if (ipv4ListDiv) ipv4ListDiv.innerHTML = '<div class="error"><i class="fas fa-exclamation-circle"></i> 获取失败</div>';
+                    addLog('获取IPv4失败', 'error');
                 }
             })
             .catch(error => {
-                console.error('获取IP失败:', error);
-                ipListDiv.innerHTML = '<div class="error"><i class="fas fa-exclamation-circle"></i> 请求失败</div>';
-                addLog('获取公网IP请求失败: ' + error.message, 'error');
+                console.error('获取IPv4失败:', error);
+                if (ipv4ListDiv) ipv4ListDiv.innerHTML = '<div class="error"><i class="fas fa-exclamation-circle"></i> 请求失败</div>';
+                addLog('获取IPv4请求失败: ' + error.message, 'error');
+            });
+    }
+    
+    // 只刷新IPv6
+    function loadIpv6() {
+        const ipv6ListDiv = document.getElementById('ipv6List');
+        if (ipv6ListDiv) ipv6ListDiv.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> 正在获取IPv6...</div>';
+        
+        fetch('/api/dns/ipv6')
+            .then(response => response.json())
+            .then(data => {
+                if (data.code === 200 && Array.isArray(data.data)) {
+                    // 更新全局列表中的IPv6部分
+                    ipServicesList = ipServicesList.filter(i => i.ipType !== 'ipv6').concat(data.data);
+                    renderIpList(data.data, 'ipv6List', 'selectedIpv6', 'ipv6');
+                    updateIpServiceSelects();
+                    const success = data.data.filter(i => i.status === 'success').length;
+                    addLog(`获取IPv6完成: ${success}/${data.data.length}`, 'success');
+                } else {
+                    if (ipv6ListDiv) ipv6ListDiv.innerHTML = '<div class="error"><i class="fas fa-exclamation-circle"></i> 获取失败</div>';
+                    addLog('获取IPv6失败', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('获取IPv6失败:', error);
+                if (ipv6ListDiv) ipv6ListDiv.innerHTML = '<div class="error"><i class="fas fa-exclamation-circle"></i> 请求失败</div>';
+                addLog('获取IPv6请求失败: ' + error.message, 'error');
             });
     }
 
@@ -103,25 +137,56 @@ document.addEventListener('DOMContentLoaded', function () {
             const select = document.getElementById(selectId);
             if (select) {
                 select.innerHTML = '';
-                ipServicesList.forEach(item => {
-                    if (item.status === 'success') {
-                        const option = document.createElement('option');
-                        option.value = item.url;
-                        option.textContent = `${item.name} (${item.ip})`;
-                        option.dataset.name = item.name;
-                        select.appendChild(option);
-                    }
+                // IPv4服务分组
+                const ipv4Group = document.createElement('optgroup');
+                ipv4Group.label = 'IPv4 服务';
+                ipServicesList.filter(i => i.ipType === 'ipv4' && i.status === 'success').forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = item.url;
+                    option.textContent = `${item.name} (${item.ip})`;
+                    option.dataset.name = item.name;
+                    option.dataset.recordType = 'A';
+                    ipv4Group.appendChild(option);
                 });
+                select.appendChild(ipv4Group);
+                // IPv6在线服务分组
+                const ipv6OnlineGroup = document.createElement('optgroup');
+                ipv6OnlineGroup.label = 'IPv6 在线服务';
+                ipServicesList.filter(i => i.ipType === 'ipv6' && i.status === 'success' && i.type !== 'local').forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = item.url;
+                    option.textContent = `${item.name} (${item.ip})`;
+                    option.dataset.name = item.name;
+                    option.dataset.recordType = 'AAAA';
+                    ipv6OnlineGroup.appendChild(option);
+                });
+                select.appendChild(ipv6OnlineGroup);
+                // IPv6本地网卡分组
+                const ipv6LocalGroup = document.createElement('optgroup');
+                ipv6LocalGroup.label = 'IPv6 本地网卡';
+                ipServicesList.filter(i => i.ipType === 'ipv6' && i.status === 'success' && i.type === 'local').forEach(item => {
+                    const option = document.createElement('option');
+                    // 本地网卡使用特殊标识
+                    option.value = 'local://' + item.ip;
+                    option.textContent = `${item.name} (${item.ip})`;
+                    option.dataset.name = item.name;
+                    option.dataset.recordType = 'AAAA';
+                    option.dataset.localIp = item.ip;
+                    ipv6LocalGroup.appendChild(option);
+                });
+                select.appendChild(ipv6LocalGroup);
             }
         });
     }
 
     // 渲染IP列表
-    function renderIpList(ipResults) {
-        const ipListDiv = document.getElementById('ipList');
+    function renderIpList(ipResults, containerId, selectedId, ipType) {
+        const ipListDiv = document.getElementById(containerId);
+        
+        if (!ipListDiv) return;
         
         if (!ipResults || ipResults.length === 0) {
-            ipListDiv.innerHTML = '<div class="empty">无可用IP服务</div>';
+            ipListDiv.innerHTML = '<div class="empty">无可用服务</div>';
             return;
         }
         
@@ -131,12 +196,13 @@ document.addEventListener('DOMContentLoaded', function () {
             const statusClass = isSuccess ? 'ip-success' : 'ip-failed';
             const statusIcon = isSuccess ? 'check-circle' : 'times-circle';
             const ipDisplay = isSuccess ? item.ip : '获取失败';
+            const typeLabel = item.type === 'builtin' ? '内置' : (item.type === 'local' ? '本地' : '自定义');
             
             html += `
-                <div class="ip-card ${statusClass}" data-ip="${item.ip || ''}" data-url="${item.url}" data-name="${item.name}" data-index="${index}">
+                <div class="ip-card ${statusClass}" data-ip="${item.ip || ''}" data-url="${item.url}" data-name="${item.name}" data-index="${index}" data-iptype="${ipType}">
                     <div class="ip-card-header">
                         <span class="ip-service-name">${item.name}</span>
-                        <span class="ip-service-type ${item.type}">${item.type === 'builtin' ? '内置' : '自定义'}</span>
+                        <span class="ip-service-type ${item.type}">${typeLabel}</span>
                     </div>
                     <div class="ip-card-body">
                         <i class="fas fa-${statusIcon}"></i>
@@ -154,31 +220,36 @@ document.addEventListener('DOMContentLoaded', function () {
         ipListDiv.innerHTML = html;
         
         // 绑定点击事件选择IP
-        document.querySelectorAll('.ip-card.ip-success').forEach(card => {
+        ipListDiv.querySelectorAll('.ip-card.ip-success').forEach(card => {
             card.addEventListener('click', function() {
-                document.querySelectorAll('.ip-card').forEach(c => c.classList.remove('selected'));
+                // 只取消同类型IP的选中状态
+                ipListDiv.querySelectorAll('.ip-card').forEach(c => c.classList.remove('selected'));
                 this.classList.add('selected');
                 const ip = this.getAttribute('data-ip');
-                document.getElementById('selectedIp').textContent = ip;
-                document.getElementById('currentSelectedIp').value = ip;
+                const selectedEl = document.getElementById(selectedId);
+                if (selectedEl) selectedEl.textContent = ip;
+                // 更新当前选中的IP（用于解析）
+                if (ipType === 'ipv4') {
+                    document.getElementById('currentSelectedIp').value = ip;
+                }
                 updateResolveButtonState();
             });
         });
         
         // 自动选择第一个成功的IP
-        const firstSuccess = document.querySelector('.ip-card.ip-success');
+        const firstSuccess = ipListDiv.querySelector('.ip-card.ip-success');
         if (firstSuccess) {
             firstSuccess.click();
         }
     }
 
-    // 刷新IP按钮
+    // 刷新IPv4按钮
     const refreshIpBtn = document.getElementById('refreshIp');
     if (refreshIpBtn) {
         refreshIpBtn.addEventListener('click', function() {
             const icon = this.querySelector('i');
             icon.classList.add('fa-spin');
-            loadAllIps();
+            loadIpv4();
             setTimeout(() => {
                 icon.classList.remove('fa-spin');
             }, 2000);
@@ -416,6 +487,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const ipServiceSelect = document.getElementById('ddnsIpService');
             const ipServiceUrl = ipServiceSelect.value;
             const ipServiceName = ipServiceSelect.options[ipServiceSelect.selectedIndex]?.dataset.name || '';
+            const recordType = ipServiceSelect.options[ipServiceSelect.selectedIndex]?.dataset.recordType || 'A';
             
             const formData = new URLSearchParams();
             formData.append('provider', document.getElementById('currentProvider').value);
@@ -426,6 +498,7 @@ document.addEventListener('DOMContentLoaded', function () {
             formData.append('ipServiceUrl', ipServiceUrl);
             formData.append('ipServiceName', ipServiceName);
             formData.append('interval', interval);
+            formData.append('recordType', recordType);
             
             confirmAddDdns.disabled = true;
             confirmAddDdns.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 添加中...';
@@ -517,54 +590,161 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // ==================== 添加IP服务 ====================
     const addServiceBtn = document.getElementById('addServiceBtn');
+    const addServiceBtnV6 = document.getElementById('addServiceBtnV6');
     const addServiceModal = document.getElementById('addServiceModal');
     const confirmAddService = document.getElementById('confirmAddService');
     const newServiceUrl = document.getElementById('newServiceUrl');
+    const addServiceIpType = document.getElementById('addServiceIpType');
+    const urlInputGroup = document.getElementById('urlInputGroup');
+    const interfaceSelectGroup = document.getElementById('interfaceSelectGroup');
+    const networkInterfaceSelect = document.getElementById('networkInterfaceSelect');
+    
+    // 服务类型切换
+    document.querySelectorAll('input[name="serviceType"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.value === 'url') {
+                urlInputGroup.style.display = 'block';
+                interfaceSelectGroup.style.display = 'none';
+            } else {
+                urlInputGroup.style.display = 'none';
+                interfaceSelectGroup.style.display = 'block';
+                loadNetworkInterfaces();
+            }
+        });
+    });
+    
+    // 加载网卡列表
+    function loadNetworkInterfaces() {
+        networkInterfaceSelect.innerHTML = '<option value="">加载中...</option>';
+        fetch('/api/dns/networkInterfaces')
+            .then(r => r.json())
+            .then(data => {
+                if (data.code === 200 && Array.isArray(data.data)) {
+                    const ipType = addServiceIpType.value;
+                    networkInterfaceSelect.innerHTML = '<option value="">请选择网卡</option>';
+                    data.data.forEach(ni => {
+                        const ips = ipType === 'ipv6' ? ni.ipv6 : ni.ipv4;
+                        if (ips && ips.length > 0) {
+                            ips.forEach(ip => {
+                                const option = document.createElement('option');
+                                option.value = `${ni.name}|${ip}`;
+                                option.textContent = `${ni.name} (${ip})`;
+                                networkInterfaceSelect.appendChild(option);
+                            });
+                        }
+                    });
+                }
+            });
+    }
+    
+    // 打开添加服务对话框
+    function openAddServiceModal(ipType) {
+        addServiceIpType.value = ipType;
+        addServiceModal.style.display = 'flex';
+        newServiceUrl.value = '';
+        // 重置为URL模式
+        document.querySelector('input[name="serviceType"][value="url"]').checked = true;
+        urlInputGroup.style.display = 'block';
+        interfaceSelectGroup.style.display = 'none';
+    }
 
     if (addServiceBtn) {
-        addServiceBtn.addEventListener('click', () => {
-            addServiceModal.style.display = 'flex';
-            newServiceUrl.value = '';
-            newServiceUrl.focus();
+        addServiceBtn.addEventListener('click', () => openAddServiceModal('ipv4'));
+    }
+    
+    if (addServiceBtnV6) {
+        addServiceBtnV6.addEventListener('click', () => openAddServiceModal('ipv6'));
+    }
+    
+    // IPv6刷新按钮
+    const refreshIpv6Btn = document.getElementById('refreshIpv6');
+    if (refreshIpv6Btn) {
+        refreshIpv6Btn.addEventListener('click', function() {
+            const icon = this.querySelector('i');
+            icon.classList.add('fa-spin');
+            loadIpv6();
+            setTimeout(() => icon.classList.remove('fa-spin'), 2000);
         });
     }
 
     if (confirmAddService) {
         confirmAddService.addEventListener('click', () => {
-            const url = newServiceUrl.value.trim();
-            if (!url) {
-                alert('请输入服务URL');
-                return;
-            }
+            const serviceType = document.querySelector('input[name="serviceType"]:checked').value;
             
-            if (!url.startsWith('http://') && !url.startsWith('https://')) {
-                alert('URL必须以 http:// 或 https:// 开头');
-                return;
-            }
-            
-            confirmAddService.disabled = true;
-            confirmAddService.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 添加中...';
-            
-            fetch('/api/dns/addIpService', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: new URLSearchParams({ url: url })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.code === 200) {
-                    addLog(`添加IP服务: ${url}`, 'success');
-                    addServiceModal.style.display = 'none';
-                    loadAllIps();
-                } else {
-                    addLog(`添加IP服务失败: ${data.message || '未知错误'}`, 'error');
-                    alert('添加失败: ' + (data.message || '未知错误'));
+            if (serviceType === 'url') {
+                // URL模式
+                const url = newServiceUrl.value.trim();
+                if (!url) {
+                    alert('请输入服务URL');
+                    return;
                 }
-            })
-            .finally(() => {
-                confirmAddService.disabled = false;
-                confirmAddService.innerHTML = '<i class="fas fa-check"></i> 添加';
-            });
+                
+                if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                    alert('URL必须以 http:// 或 https:// 开头');
+                    return;
+                }
+                
+                confirmAddService.disabled = true;
+                confirmAddService.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 添加中...';
+                
+                fetch('/api/dns/addIpService', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({ url: url })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.code === 200) {
+                        addLog(`添加IP服务: ${url}`, 'success');
+                        addServiceModal.style.display = 'none';
+                        loadAllIps();
+                    } else {
+                        addLog(`添加IP服务失败: ${data.message || '未知错误'}`, 'error');
+                        alert('添加失败: ' + (data.message || '未知错误'));
+                    }
+                })
+                .finally(() => {
+                    confirmAddService.disabled = false;
+                    confirmAddService.innerHTML = '<i class="fas fa-check"></i> 添加';
+                });
+            } else {
+                // 本地网卡模式
+                const selected = networkInterfaceSelect.value;
+                if (!selected) {
+                    alert('请选择网卡');
+                    return;
+                }
+                
+                const [interfaceName, ip] = selected.split('|');
+                const ipType = addServiceIpType.value;
+                
+                confirmAddService.disabled = true;
+                confirmAddService.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 添加中...';
+                
+                fetch('/api/dns/addLocalInterface', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({ 
+                        interfaceName: interfaceName,
+                        ipType: ipType
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.code === 200) {
+                        addLog(`添加本地网卡: ${interfaceName} (${ipType})`, 'success');
+                        addServiceModal.style.display = 'none';
+                        loadAllIps();
+                    } else {
+                        addLog(`添加本地网卡失败: ${data.message || '未知错误'}`, 'error');
+                        alert('添加失败: ' + (data.message || '未知错误'));
+                    }
+                })
+                .finally(() => {
+                    confirmAddService.disabled = false;
+                    confirmAddService.innerHTML = '<i class="fas fa-check"></i> 添加';
+                });
+            }
         });
     }
 

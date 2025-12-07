@@ -29,6 +29,13 @@
             <div class="error-message" th:if="${error}">
                 <p th:text="${error}"></p>
             </div>
+            <div class="remember-me">
+                <label class="checkbox-label">
+                    <input type="checkbox" name="rememberMe" id="rememberMe">
+                    <span class="checkmark"></span>
+                    <span>保持登录</span>
+                </label>
+            </div>
             <button type="submit" class="submit-btn">登录验证</button>
         </div>
     </form>

@@ -20,10 +20,16 @@ public class DdnsTask {
     private String fullDomain;      // 完整域名 (subdomain.domain)
     private String ipServiceUrl;    // 使用的IP服务URL
     private String ipServiceName;   // 使用的IP服务名称
+    private String recordType;      // 记录类型: A (IPv4) 或 AAAA (IPv6)
     private int interval;           // 定时间隔(秒)
     private boolean enabled;        // 是否启用
     private String lastIp;          // 上次解析的IP
     private String lastUpdateTime;  // 上次更新时间
     private String status;          // 状态: running, stopped, error
     private String lastError;       // 上次错误信息
+    
+    // 兼容旧数据，默认为A记录
+    public String getRecordType() {
+        return recordType == null ? "A" : recordType;
+    }
 }
