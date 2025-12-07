@@ -5,11 +5,18 @@ plugins {
 }
 
 group = 'top.hanlin'
+version = '1.0.0'
 
 java {
 	toolchain {
 		languageVersion = JavaLanguageVersion.of(21)
 	}
+}
+
+// 构建的jar包名称为myapp.jar，不带版本号
+tasks.named('bootJar') {
+	archiveBaseName = 'myapp'
+	archiveVersion = ''
 }
 
 repositories {

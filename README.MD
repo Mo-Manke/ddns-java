@@ -1,8 +1,8 @@
-# PublicIPUpload - DDNS 动态域名解析管理系统
+# ddns-java - DDNS 动态域名解析管理系统
 
 ## 项目简介
 
-PublicIPUpload 是一个基于 Spring Boot 的 DDNS（动态域名解析）管理系统，提供 Web 可视化界面，支持自动获取公网 IPv4/IPv6 地址并更新 DNS 解析记录。支持腾讯云和阿里云两大云服务商。
+ddns-java 是一个基于 Spring Boot 的 DDNS（动态域名解析）管理系统，提供 Web 可视化界面，支持自动获取公网 IPv4/IPv6 地址并更新 DNS 解析记录。支持腾讯云和阿里云两大云服务商。
 
 ## 功能特点
 
@@ -36,7 +36,7 @@ PublicIPUpload 是一个基于 Spring Boot 的 DDNS（动态域名解析）管�
 ## 项目结构
 
 ```
-PublicIPUpload/
+ddns-java/
 ├── build.gradle                 # Gradle 构建配置
 ├── src/main/
 │   ├── java/top/hanlin/publicipupload/
@@ -81,15 +81,15 @@ PublicIPUpload/
 
 ```bash
 # 克隆项目
-git clone https://github.com/Mo-Manke/PublicIPUpload.git
-cd PublicIPUpload
+git clone https://github.com/Mo-Manke/ddns-java.git
+cd ddns-java
 
 # 构建并运行
 ./gradlew bootRun
 
 # 或者打包后运行
 ./gradlew bootJar
-java -jar build/libs/PublicIpUpload-*.jar
+java -jar build/libs/myapp.jar
 ```
 
 ### 访问系统
@@ -174,4 +174,4 @@ logging.level.root=INFO
 
 ## 问题反馈
 
-如有问题或建议，请通过 [GitHub Issues](https://github.com/Mo-Manke/PublicIPUpload/issues) 提交。
+如有问题或建议，请通过 [GitHub Issues](https://github.com/Mo-Manke/ddns-java/issues) 提交。
