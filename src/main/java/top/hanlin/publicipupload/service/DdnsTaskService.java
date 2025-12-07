@@ -302,22 +302,23 @@ public class DdnsTaskService {
         Map<String, Object> result = new HashMap<>();
         
         try {
-            // 获取当前IP（优先使用用户选择的服务，失败则自动切换备用服务）
+            // 获取当前本地公网IP（优先使用用户选择的服务，失败则自动切换备用服务）
             String currentIp = fetchIPWithFallback(task);
             if (currentIp == null || currentIp.isEmpty()) {
                 throw new Exception("所有IP服务均不可用");
             }
             
-            // 获取域名当前解析的IP
-            String dnsIp = resolveDomainIp(task.getFullDomain());
+            // 从云服务商API获取域名当前解析的IP
+            String dnsIp = getDnsRecordIp(task);
             
-            // 检查是否需要更新：本地IP变化 或 DNS解析IP与本地IP不一致
-            boolean localIpChanged = !currentIp.equals(task.getLastIp());
-            boolean dnsIpMismatch = dnsIp != null && !currentIp.equals(dnsIp);
-            
-            if (!localIpChanged && !dnsIpMismatch) {
-                log.debug("IP未变化，跳过更新: {} -> {}", task.getFullDomain(), currentIp);
-                addOperationLog("info", "[DDNS] " + task.getFullDomain() + " IP未变化: " + currentIp);
+            // 检查是否需要更新：DNS记录IP与本地IP不一致
+            if (dnsIp != null && currentIp.equals(dnsIp)) {
+                log.debug("DNS记录IP与本地IP一致，跳过更新: {} -> {}", task.getFullDomain(), currentIp);
+                // 更新lastIp以保持同步
+                if (!currentIp.equals(task.getLastIp())) {
+                    task.setLastIp(currentIp);
+                    saveTasks();
+                }
                 result.put("success", true);
                 result.put("message", "IP未变化");
                 result.put("ip", currentIp);
@@ -325,9 +326,12 @@ public class DdnsTaskService {
             }
             
             // 记录更新原因
-            if (dnsIpMismatch && !localIpChanged) {
-                log.info("DNS解析IP与本地IP不一致，需要更新: {} DNS={} 本地={}", task.getFullDomain(), dnsIp, currentIp);
-                addOperationLog("warn", "[DDNS] " + task.getFullDomain() + " DNS解析IP(" + dnsIp + ")与本地IP(" + currentIp + ")不一致，执行更新");
+            if (dnsIp == null) {
+                log.info("DNS记录不存在，创建新记录: {} -> {}", task.getFullDomain(), currentIp);
+                addOperationLog("info", "[DDNS] " + task.getFullDomain() + " DNS记录不存在，创建: " + currentIp);
+            } else {
+                log.info("DNS记录IP与本地IP不一致，执行更新: {} DNS={} 本地={}", task.getFullDomain(), dnsIp, currentIp);
+                addOperationLog("warn", "[DDNS] " + task.getFullDomain() + " DNS记录(" + dnsIp + ")与本地IP(" + currentIp + ")不一致，执行更新");
             }
             
             // 更新DNS记录
@@ -368,20 +372,67 @@ public class DdnsTaskService {
     }
     
     /**
-     * 解析域名获取当前DNS记录的IP
+     * 从云服务商API获取域名当前DNS记录的IP
      */
-    private String resolveDomainIp(String domain) {
+    private String getDnsRecordIp(DdnsTask task) {
         try {
-            java.net.InetAddress[] addresses = java.net.InetAddress.getAllByName(domain);
-            if (addresses.length > 0) {
-                String ip = addresses[0].getHostAddress();
-                // 只返回IPv4地址
-                if (ip.matches("\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}")) {
-                    return ip;
-                }
+            if ("腾讯云".equals(task.getProvider())) {
+                return getTencentDnsRecordIp(task);
+            } else if ("阿里云".equals(task.getProvider())) {
+                return getAliyunDnsRecordIp(task);
             }
         } catch (Exception e) {
-            log.debug("解析域名IP失败: {} - {}", domain, e.getMessage());
+            log.debug("获取DNS记录IP失败: {} - {}", task.getFullDomain(), e.getMessage());
+        }
+        return null;
+    }
+    
+    /**
+     * 获取腾讯云DNS记录的IP
+     */
+    private String getTencentDnsRecordIp(DdnsTask task) throws Exception {
+        Credential cred = new Credential(task.getSecretId(), task.getSecretKey());
+        HttpProfile httpProfile = new HttpProfile();
+        httpProfile.setEndpoint("dnspod.tencentcloudapi.com");
+        ClientProfile clientProfile = new ClientProfile();
+        clientProfile.setHttpProfile(httpProfile);
+        DnspodClient client = new DnspodClient(cred, "", clientProfile);
+        
+        DescribeRecordListRequest listReq = new DescribeRecordListRequest();
+        listReq.setDomain(task.getDomain());
+        listReq.setSubdomain(task.getSubdomain());
+        DescribeRecordListResponse listResp = client.DescribeRecordList(listReq);
+        
+        if (listResp.getRecordList() != null && listResp.getRecordList().length > 0) {
+            for (RecordListItem record : listResp.getRecordList()) {
+                if ("A".equals(record.getType())) {
+                    return record.getValue();
+                }
+            }
+        }
+        return null;
+    }
+    
+    /**
+     * 获取阿里云DNS记录的IP
+     */
+    private String getAliyunDnsRecordIp(DdnsTask task) throws Exception {
+        com.aliyun.alidns20150109.Client client = createAliyunClient(task.getSecretId(), task.getSecretKey());
+        
+        com.aliyun.alidns20150109.models.DescribeDomainRecordsRequest listReq = 
+            new com.aliyun.alidns20150109.models.DescribeDomainRecordsRequest()
+                .setDomainName(task.getDomain())
+                .setRRKeyWord(task.getSubdomain())
+                .setType("A");
+        com.aliyun.alidns20150109.models.DescribeDomainRecordsResponse listResp = client.describeDomainRecords(listReq);
+        
+        if (listResp.getBody().getDomainRecords() != null && 
+            listResp.getBody().getDomainRecords().getRecord() != null) {
+            for (var record : listResp.getBody().getDomainRecords().getRecord()) {
+                if (task.getSubdomain().equals(record.getRR()) && "A".equals(record.getType())) {
+                    return record.getValue();
+                }
+            }
         }
         return null;
     }

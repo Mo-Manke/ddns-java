@@ -16,4 +16,12 @@ public interface TencentApiService {
      * @return 是否添加成功
      */
     boolean addIdAndKey(String name,String secretId,String secretKey);
+
+    /**
+     * 删除云服务账号
+     * @param provider 云服务商名称
+     * @param secretId 账号ID
+     * @return 是否删除成功
+     */
+    boolean deleteAccount(String provider, String secretId);
 }

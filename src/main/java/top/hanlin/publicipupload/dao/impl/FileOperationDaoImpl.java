@@ -92,6 +92,41 @@ public class FileOperationDaoImpl implements FileOperationDao {
     }
 
     @Override
+    public boolean deleteAccount(String provider, String secretId) {
+        File providerFolder = new File(provider);
+        if (!providerFolder.exists() || !providerFolder.isDirectory()) {
+            System.out.println(provider + " 文件夹不存在");
+            return false;
+        }
+
+        File secretIdFolder = new File(providerFolder, secretId);
+        if (!secretIdFolder.exists() || !secretIdFolder.isDirectory()) {
+            System.out.println(secretId + " 文件夹不存在");
+            return false;
+        }
+
+        // 递归删除文件夹及其内容
+        return deleteDirectory(secretIdFolder);
+    }
+
+    /**
+     * 递归删除目录
+     */
+    private boolean deleteDirectory(File dir) {
+        if (dir.isDirectory()) {
+            File[] children = dir.listFiles();
+            if (children != null) {
+                for (File child : children) {
+                    if (!deleteDirectory(child)) {
+                        return false;
+                    }
+                }
+            }
+        }
+        return dir.delete();
+    }
+
+    @Override
     public void modifyPassword(String modify) {
         try (FileWriter writer = new FileWriter("password")) {
             writer.write(modify);

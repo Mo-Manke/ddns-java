@@ -52,4 +52,9 @@ public class TencentApiServiceImpl implements TencentApiService {
     public boolean addIdAndKey(String name,String secretId, String secretKey) {
         return fileOperationDao.addIdAndKey(name,secretId,secretKey);
     }
+
+    @Override
+    public boolean deleteAccount(String provider, String secretId) {
+        return fileOperationDao.deleteAccount(provider, secretId);
+    }
 }

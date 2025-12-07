@@ -23,6 +23,9 @@
                     <i class="fas fa-server"></i>
                     <span th:text="${user.name}">腾讯云</span>
                 </a>
+                <button class="delete-account-btn" th:data-provider="${user.name}" th:data-id="${user.id}" title="删除账号">
+                    <i class="fas fa-trash"></i>
+                </button>
                 <input type="hidden" class="user-id" th:value="${user.id}">
                 <input type="hidden" class="user-key" th:value="${user.key}">
                 <input type="hidden" class="user-provider" th:value="${user.name}">

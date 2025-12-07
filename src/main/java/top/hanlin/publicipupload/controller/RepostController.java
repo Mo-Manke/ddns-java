@@ -195,4 +195,26 @@ public class RepostController {
         
         return "redirect:/pages/console";
     }
+
+    /**
+     * 删除云服务账号
+     */
+    @PostMapping("/deleteAccount")
+    public String deleteAccount(@RequestParam String provider, @RequestParam String id,
+                                 HttpServletRequest request, Model model) {
+        if (!isLoggedIn(request)) {
+            model.addAttribute("error", "请先登录");
+            return "index";
+        }
+        
+        log.info("删除云服务账号: provider={}, id={}", provider, id);
+        
+        if (tencentApiService.deleteAccount(provider, id)) {
+            status = "账号删除成功";
+        } else {
+            error = "账号删除失败";
+        }
+        
+        return "redirect:/pages/console";
+    }
 }

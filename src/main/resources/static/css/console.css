@@ -92,6 +92,38 @@ a {
     padding-top: 20px !important;
 }
 
+/* 账号列表项 */
+.menu li.user-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.menu li.user-item .user-link {
+    flex: 1;
+}
+
+.delete-account-btn {
+    background: transparent;
+    border: none;
+    color: rgba(255,255,255,0.3);
+    cursor: pointer;
+    padding: 5px 8px;
+    border-radius: 4px;
+    transition: all 0.3s;
+    opacity: 0;
+}
+
+.menu li.user-item:hover .delete-account-btn {
+    opacity: 1;
+}
+
+.delete-account-btn:hover {
+    color: #ff6b6b;
+    background: rgba(255, 107, 107, 0.1);
+}
+
 /* 侧边栏底部 */
 .sidebar-footer {
     padding: 15px 20px;

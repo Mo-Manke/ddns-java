@@ -2,6 +2,38 @@ document.addEventListener('DOMContentLoaded', function () {
     // 存储IP服务列表
     let ipServicesList = [];
 
+    // ==================== 删除账号按钮 ====================
+    document.querySelectorAll('.delete-account-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation(); // 阻止冒泡，避免触发菜单点击
+            
+            const provider = this.getAttribute('data-provider');
+            const id = this.getAttribute('data-id');
+            
+            if (confirm(`确定要删除 ${provider} 账号吗？\n\nSecretId: ${id.substring(0, 10)}...`)) {
+                // 创建表单提交
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '/deleteAccount';
+                
+                const providerInput = document.createElement('input');
+                providerInput.type = 'hidden';
+                providerInput.name = 'provider';
+                providerInput.value = provider;
+                form.appendChild(providerInput);
+                
+                const idInput = document.createElement('input');
+                idInput.type = 'hidden';
+                idInput.name = 'id';
+                idInput.value = id;
+                form.appendChild(idInput);
+                
+                document.body.appendChild(form);
+                form.submit();
+            }
+        });
+    });
+
     // ==================== 页面切换 ====================
     const menuItems = document.querySelectorAll('.menu li');
 
